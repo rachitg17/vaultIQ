@@ -19,13 +19,12 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class ChatService {
 
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final GeminiService geminiService;
-
+    @Transactional
     public ChatResponse chat(ChatRequest request) {
         log.info("Chat request: {}", request.getQuestion());
 
@@ -130,7 +129,7 @@ public class ChatService {
 
         return score;
     }
-
+    @Transactional
     private String buildContext(List<DocumentChunk> chunks) {
         StringBuilder context = new StringBuilder();
 
