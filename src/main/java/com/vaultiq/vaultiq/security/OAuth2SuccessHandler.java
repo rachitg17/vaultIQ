@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -17,11 +18,13 @@ import java.io.IOException;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
+public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     private final AuthService authService;
 
+    public OAuth2SuccessHandler(@Lazy AuthService authService) {
+        this.authService = authService;
+    }
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
@@ -48,6 +51,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         cookie.setMaxAge(86400); // 24 hours
         response.addCookie(cookie);
 
-        response.sendRedirect(frontendUrl + "/app");
+        response.sendRedirect(frontendUrl + "/index.html?auth=success");
     }
 }

@@ -8,8 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -31,12 +29,19 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // DO NOT use STATELESS — OAuth2 needs session for state param
+                .sessionManagement(s -> s
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/oauth2/**",
-                                "/login/**", "/api/v1/health",
-                                "/", "/index.html", "/**.html",
-                                "/**.css", "/**.js").permitAll()
+                        .requestMatchers(
+                                "/api/v1/auth/**",
+                                "/oauth2/**",
+                                "/login/**",
+                                "/api/v1/health",
+                                "/", "/index.html",
+                                "/**.html", "/**.css", "/**.js"
+                        ).permitAll()
+                        .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
                         .authorizationEndpoint(a -> a.baseUri("/oauth2/authorize"))
@@ -55,10 +60,8 @@ public class SecurityConfig {
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
-        return source -> {
-            UrlBasedCorsConfigurationSource s = new UrlBasedCorsConfigurationSource();
-            s.registerCorsConfiguration("/**", config);
-            return s.getCorsConfiguration(source);
-        };
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }
