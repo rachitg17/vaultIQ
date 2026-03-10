@@ -15,7 +15,121 @@
     body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow: hidden; }
     body::before { content: ''; position: fixed; top: -40%; left: -20%; width: 60%; height: 60%; background: radial-gradient(ellipse, rgba(124,109,250,0.08) 0%, transparent 70%); pointer-events: none; z-index: 0; }
     body::after { content: ''; position: fixed; bottom: -30%; right: -10%; width: 50%; height: 50%; background: radial-gradient(ellipse, rgba(250,109,154,0.06) 0%, transparent 70%); pointer-events: none; z-index: 0; }
-    .app { display: flex; height: 100vh; position: relative; z-index: 1; }
+
+    /* ═══════════════════════════════════════
+       AUTH PAGE
+    ═══════════════════════════════════════ */
+    #authPage {
+      display: none;
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--bg);
+      align-items: center; justify-content: center;
+    }
+    #authPage.visible { display: flex; }
+
+    .auth-container {
+      width: 100%; max-width: 420px;
+      padding: 20px;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .auth-logo {
+      text-align: center; margin-bottom: 32px;
+    }
+    .auth-logo-mark {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 32px;
+      letter-spacing: -1px;
+    }
+    .auth-logo-mark span { color: var(--accent); }
+    .auth-logo-tag {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px;
+    }
+
+    .auth-tabs {
+      display: flex; gap: 0; margin-bottom: 28px;
+      background: var(--surface2); border-radius: 10px; padding: 4px;
+    }
+    .auth-tab {
+      flex: 1; padding: 8px; border: none; background: none;
+      color: var(--text-muted); font-family: 'Syne', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border-radius: 7px; transition: all 0.2s;
+    }
+    .auth-tab.active {
+      background: var(--accent); color: white;
+    }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; animation: fadeUp 0.2s ease; }
+
+    .auth-field { margin-bottom: 14px; }
+    .auth-label {
+      display: block; font-size: 11px; font-family: 'DM Mono', monospace;
+      color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .auth-input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 11px 14px; color: var(--text);
+      font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-input::placeholder { color: var(--text-dim); }
+
+    .auth-btn {
+      width: 100%; padding: 12px; margin-top: 6px;
+      background: var(--accent); border: none; border-radius: 10px;
+      color: white; font-family: 'Syne', sans-serif; font-size: 14px;
+      font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .auth-btn:hover { background: #9585fb; transform: translateY(-1px); }
+    .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .auth-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0; color: var(--text-dim); font-size: 11px;
+      font-family: 'DM Mono', monospace;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    .google-btn {
+      width: 100%; padding: 11px; background: none;
+      border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text); font-family: 'DM Sans', sans-serif;
+      font-size: 14px; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .google-btn:hover { border-color: var(--accent); background: rgba(124,109,250,0.06); }
+
+    .google-icon {
+      width: 18px; height: 18px;
+    }
+
+    .auth-error {
+      padding: 10px 14px; background: rgba(250,109,154,0.1);
+      border: 1px solid rgba(250,109,154,0.3); border-radius: 8px;
+      font-size: 12px; color: var(--accent2); margin-bottom: 14px;
+      display: none;
+    }
+    .auth-error.show { display: block; animation: fadeUp 0.2s ease; }
+
+    /* ═══════════════════════════════════════
+       MAIN APP
+    ═══════════════════════════════════════ */
+    .app { display: none; height: 100vh; position: relative; z-index: 1; }
+    .app.visible { display: flex; }
 
     /* SIDEBAR */
     .sidebar { width: 240px; min-width: 240px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -49,6 +163,48 @@
     .pill { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: none; color: var(--text-muted); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
     .pill:hover { border-color: var(--accent); color: var(--accent); }
     .pill.active { background: rgba(124,109,250,0.15); border-color: var(--accent); color: var(--accent); }
+
+    /* USER PILL */
+    .user-pill {
+      display: flex; align-items: center; gap: 7px;
+      padding: 4px 10px 4px 5px;
+      border-radius: 20px; border: 1px solid var(--border);
+      background: none; cursor: pointer; transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text-muted);
+      position: relative;
+    }
+    .user-pill:hover { border-color: var(--accent); color: var(--accent); }
+    .user-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(124,109,250,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; overflow: hidden; flex-shrink: 0;
+    }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    .user-dropdown {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 8px; min-width: 180px;
+      display: none; z-index: 100; animation: fadeUp 0.15s ease;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .user-dropdown.open { display: block; }
+    .user-dropdown-header {
+      padding: 8px 10px 10px; border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+    }
+    .user-dropdown-name { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; }
+    .user-dropdown-email { font-size: 11px; color: var(--text-muted); margin-top: 2px; word-break: break-all; }
+    .dropdown-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; padding: 8px 10px; border: none; background: none;
+      color: var(--text-muted); font-family: 'DM Sans', sans-serif;
+      font-size: 12px; cursor: pointer; border-radius: 7px; transition: all 0.15s;
+      text-align: left;
+    }
+    .dropdown-item:hover { background: var(--surface2); color: var(--text); }
+    .dropdown-item.danger:hover { color: var(--accent2); }
 
     /* PANELS */
     .content { flex: 1; overflow-y: auto; padding: 24px; }
@@ -89,6 +245,17 @@
     .citation-chip { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: rgba(109,250,189,0.06); border: 1px solid rgba(109,250,189,0.15); border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--accent3); cursor: pointer; transition: all 0.15s; }
     .citation-chip:hover { background: rgba(109,250,189,0.12); border-color: rgba(109,250,189,0.35); transform: translateX(3px); }
     .citation-open { margin-left: auto; font-size: 9px; opacity: 0.5; }
+
+    /* BACK TO ALL DOCS BUTTON */
+    .back-to-all {
+      display: none; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px;
+      border: 1px solid var(--border); background: none;
+      color: var(--text-muted); font-size: 12px; cursor: pointer;
+      transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+    }
+    .back-to-all:hover { border-color: var(--accent3); color: var(--accent3); }
+    .back-to-all.visible { display: flex; }
 
     /* CHAT INPUT */
     .chat-input-area { padding-top: 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
@@ -205,132 +372,111 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
     #fileInput { display: none; }
+
     @media screen and (max-width: 768px) {
-    .app {
-      flex-direction: column;
-      overflow: visible;
+      .app { flex-direction: column; overflow: visible; }
+      .sidebar { width: 100%; min-width: 0; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 0 10px; }
+      .sidebar .nav { flex-direction: row; padding: 0; overflow-x: auto; }
+      .nav-btn { flex-shrink: 0; font-size: 12px; padding: 8px 12px; }
+      .sidebar-footer { display: none; }
+      .main { flex: 1 1 auto; min-height: auto; overflow: visible; }
+      .topbar { flex-wrap: wrap; padding: 10px 14px; }
+      .topbar-right { margin-top: 6px; }
+      .docs-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+      .chat-area { padding: 16px; }
+      .chat-input-area { padding: 8px 0; }
+      .chat-input { min-height: 38px; font-size: 13px; }
+      .send-btn { width: 36px; height: 36px; font-size: 14px; }
+      .pdf-panel.open { width: 100%; min-width: 0; position: absolute; top: 0; left: 0; height: 100%; z-index: 999; border-left-width: 0; background: var(--surface); }
+      .pdf-panel-header { padding: 8px 10px; }
+      .pdf-panel-title { font-size: 12px; }
+      .doc-card, .search-result-card { padding: 14px; }
+      .drop-zone { padding: 30px 20px; }
     }
-
-    .sidebar {
-      width: 100%;
-      min-width: 0;
-      flex-direction: row;
-      overflow-x: auto;
-      border-right: none;
-      border-bottom: 1px solid var(--border);
-      padding: 0 10px;
-    }
-
-    .sidebar .nav {
-      flex-direction: row;
-      padding: 0;
-      overflow-x: auto;
-    }
-
-    .nav-btn {
-      flex-shrink: 0;
-      font-size: 12px;
-      padding: 8px 12px;
-    }
-
-    .sidebar-footer {
-      display: none;
-    }
-
-    .main {
-      flex: 1 1 auto;
-      min-height: auto;
-      overflow: visible;
-    }
-
-    .topbar {
-      flex-wrap: wrap;
-      padding: 10px 14px;
-    }
-
-    .topbar-right {
-      margin-top: 6px;
-    }
-
-    .docs-grid {
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 10px;
-    }
-
-    .chat-area {
-      padding: 16px;
-    }
-
-    .chat-input-area {
-      padding: 8px 0;
-    }
-
-    .chat-input {
-      min-height: 38px;
-      font-size: 13px;
-    }
-
-    .send-btn {
-      width: 36px;
-      height: 36px;
-      font-size: 14px;
-    }
-
-    .pdf-panel.open {
-      width: 100%;
-      min-width: 0;
-      position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
-      z-index: 999;
-      border-left-width: 0;
-      background: var(--surface);
-    }
-
-    .pdf-panel-header {
-      padding: 8px 10px;
-    }
-
-    .pdf-panel-title {
-      font-size: 12px;
-    }
-
-    .doc-card, .search-result-card {
-      padding: 14px;
-    }
-
-    .drop-zone {
-      padding: 30px 20px;
-    }
-  }
-
-  @media screen and (max-width: 480px) {
-    .nav-btn {
-      font-size: 11px;
-      padding: 6px 10px;
-    }
-
-    .page-title {
-      font-size: 15px;
-    }
-
-    .doc-card-name {
-      font-size: 11px;
-    }
-
-    .drop-title {
-      font-size: 17px;
-    }
-
-    .drop-sub {
-      font-size: 12px;
-    }
-  }
   </style>
 </head>
 <body>
-<div class="app">
+
+<!-- ═══════════════════════════════════════
+     AUTH PAGE
+═══════════════════════════════════════ -->
+<div id="authPage">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="auth-logo-mark">Vault<span>IQ</span></div>
+      <div class="auth-logo-tag">Document Intelligence</div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Create Account</button>
+      </div>
+
+      <!-- ERROR -->
+      <div class="auth-error" id="authError"></div>
+
+      <!-- LOGIN FORM -->
+      <div class="auth-form active" id="loginForm">
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input class="auth-input" id="loginEmail" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter') doLogin()">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="loginPassword" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
+        </div>
+        <button class="auth-btn" id="loginBtn" onclick="doLogin()">Sign In →</button>
+
+        <div class="auth-divider">or continue with</div>
+
+        <button class="google-btn" onclick="doGoogleLogin()">
+          <svg class="google-icon" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Continue with Google
+        </button>
+      </div>
+
+      <!-- REGISTER FORM -->
+      <div class="auth-form" id="registerForm">
+        <div class="auth-field">
+          <label class="auth-label">Full Name</label>
+          <input class="auth-input" id="registerName" type="text" placeholder="Your name" onkeydown="if(event.key==='Enter') doRegister()">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input class="auth-input" id="registerEmail" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter') doRegister()">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="registerPassword" type="password" placeholder="Min 8 characters" onkeydown="if(event.key==='Enter') doRegister()">
+        </div>
+        <button class="auth-btn" id="registerBtn" onclick="doRegister()">Create Account →</button>
+
+        <div class="auth-divider">or continue with</div>
+
+        <button class="google-btn" onclick="doGoogleLogin()">
+          <svg class="google-icon" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Continue with Google
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════ -->
+<div class="app" id="mainApp">
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
@@ -358,7 +504,19 @@
       <div class="page-title" id="pageTitle">Documents</div>
       <div class="topbar-right">
         <button class="pill" id="viewerToggleBtn" style="display:none" onclick="togglePdfPanel()">📄 View PDF</button>
-        <button class="pill active">👤 rachit</button>
+        <button class="back-to-all" id="backToAllBtn" onclick="backToGlobalChat()">← All Docs</button>
+        <!-- USER PILL -->
+        <div class="user-pill" onclick="toggleUserDropdown()">
+          <div class="user-avatar" id="userAvatarEl">👤</div>
+          <span id="userNameEl">...</span>
+          <div class="user-dropdown" id="userDropdown">
+            <div class="user-dropdown-header">
+              <div class="user-dropdown-name" id="dropdownName">—</div>
+              <div class="user-dropdown-email" id="dropdownEmail">—</div>
+            </div>
+            <button class="dropdown-item danger" onclick="doLogout()">🚪 Sign Out</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -379,7 +537,7 @@
           <div class="empty-chat" id="emptyChat">
             <div class="empty-chat-icon">🧠</div>
             <div class="empty-chat-title">Ask anything about your documents</div>
-            <div class="empty-chat-sub">VaultIQ searches all your documents and answers with exact citations. Click any citation to open the PDF at that page.</div>
+            <div class="empty-chat-sub">VaultIQ searches all your documents and answers with exact citations.</div>
             <div class="suggestion-chips">
               <div class="chip" onclick="useChip(this)">What is the overall percentile?</div>
               <div class="chip" onclick="useChip(this)">Summarize key points</div>
@@ -396,7 +554,6 @@
           </div>
         </div>
       </div>
-      <!-- PDF SIDE PANEL -->
       <div class="pdf-panel" id="pdfPanel">
         <div class="pdf-panel-header">
           <div class="pdf-panel-title" id="pdfPanelTitle">Document</div>
@@ -416,7 +573,7 @@
       <div class="search-bar-wrap">
         <span class="search-icon-pos">🔍</span>
         <input class="search-input" id="searchInput"
-               placeholder="Describe what you're looking for... e.g. 'government ID from Haryana'"
+               placeholder="Describe what you're looking for..."
                onkeydown="if(event.key==='Enter') doSearch()">
         <button class="search-go" onclick="doSearch()">Search</button>
       </div>
@@ -444,7 +601,6 @@
       </div>
       <input type="file" id="fileInput" accept=".pdf" onchange="handleFileSelect(event)">
 
-      <!-- STAGED FILE + CONTEXT -->
       <div id="stagedArea" style="display:none;margin-top:14px;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;animation:fadeUp 0.2s ease">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <span style="font-size:22px">📄</span>
@@ -454,8 +610,6 @@
           </div>
           <button onclick="clearStaged()" style="background:none;border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:11px;padding:3px 8px;cursor:pointer">✕ Clear</button>
         </div>
-
-        <!-- Context toggle inside staged area -->
         <div style="margin-bottom:10px">
           <button class="context-toggle-btn" onclick="toggleContext()">
             <span id="ctxIcon">＋</span> Add context for better AI understanding
@@ -463,11 +617,9 @@
         </div>
         <div class="context-box" id="contextBox">
           <div class="context-label">Help AI understand this document</div>
-          <div class="context-hint">e.g. "This is a CBSE 12th marksheet, marks are out of 100." &nbsp;|&nbsp; "Customer is KUSUM GARG, not Rachit Garg." &nbsp;|&nbsp; "This is a medical invoice from Radhika Medicos."</div>
+          <div class="context-hint">e.g. "This is a CBSE 12th marksheet" | "This is a medical invoice from Radhika Medicos."</div>
           <textarea class="context-input" id="contextInput" placeholder="Type additional context here..."></textarea>
         </div>
-
-        <!-- SUBMIT BUTTON -->
         <button onclick="submitUpload()" style="margin-top:12px;width:100%;padding:11px;background:var(--accent);border:none;border-radius:9px;color:white;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px">
           🚀 Upload &amp; Process
         </button>
@@ -488,14 +640,164 @@
 
 <script>
   const API = '/api/v1';
-  const USER = 'rachit';
+  let currentUser = null;
   let documents = [];
   let activeDocId = null;
   let activeDocName = null;
   let pdfPanelOpen = false;
   let currentPdfDocId = null;
 
-  // ── PANEL SWITCHING ──
+  // ══════════════════════════════════════
+  // AUTH
+  // ══════════════════════════════════════
+
+  function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+    });
+    document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+    document.getElementById('registerForm').classList.toggle('active', tab === 'register');
+    hideAuthError();
+  }
+
+  function showAuthError(msg) {
+    const el = document.getElementById('authError');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  function hideAuthError() {
+    document.getElementById('authError').classList.remove('show');
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) { showAuthError('Please enter email and password'); return; }
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; btn.textContent = 'Signing in...';
+    try {
+      const res = await fetch(`${API}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data;
+        showApp();
+      } else {
+        showAuthError(data.message || 'Login failed');
+      }
+    } catch (e) {
+      showAuthError('Connection error. Please try again.');
+    }
+    btn.disabled = false; btn.textContent = 'Sign In →';
+  }
+
+  async function doRegister() {
+    const name = document.getElementById('registerName').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value;
+    if (!name || !email || !password) { showAuthError('Please fill all fields'); return; }
+    if (password.length < 8) { showAuthError('Password must be at least 8 characters'); return; }
+    const btn = document.getElementById('registerBtn');
+    btn.disabled = true; btn.textContent = 'Creating account...';
+    try {
+      const res = await fetch(`${API}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentUser = data;
+        showApp();
+      } else {
+        showAuthError(data.message || 'Registration failed');
+      }
+    } catch (e) {
+      showAuthError('Connection error. Please try again.');
+    }
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
+
+  function doGoogleLogin() {
+    window.location.href = '/oauth2/authorize/google';
+  }
+
+  async function doLogout() {
+    await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' });
+    currentUser = null;
+    showAuth();
+  }
+
+  async function checkAuth() {
+    try {
+      const res = await fetch(`${API}/auth/me`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          currentUser = data;
+          showApp();
+          return;
+        }
+      }
+    } catch (e) {}
+    showAuth();
+  }
+
+  function showAuth() {
+    document.getElementById('authPage').classList.add('visible');
+    document.getElementById('mainApp').classList.remove('visible');
+  }
+
+  function showApp() {
+    document.getElementById('authPage').classList.remove('visible');
+    document.getElementById('mainApp').classList.add('visible');
+    updateUserUI();
+    loadDocuments();
+
+    // Handle OAuth redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('auth') === 'success') {
+      showToast('Signed in successfully!', 'success');
+      window.history.replaceState({}, '', '/');
+    }
+  }
+
+  function updateUserUI() {
+    if (!currentUser) return;
+    const name = currentUser.name || currentUser.email?.split('@')[0] || 'User';
+    const email = currentUser.email || '';
+    document.getElementById('userNameEl').textContent = name;
+    document.getElementById('dropdownName').textContent = name;
+    document.getElementById('dropdownEmail').textContent = email;
+
+    // Set avatar — picture for Google users
+    const avatarEl = document.getElementById('userAvatarEl');
+    if (currentUser.picture) {
+      avatarEl.innerHTML = `<img src="${currentUser.picture}" alt="${name}">`;
+    } else {
+      avatarEl.textContent = name.charAt(0).toUpperCase();
+    }
+  }
+
+  function toggleUserDropdown() {
+    event.stopPropagation();
+    document.getElementById('userDropdown').classList.toggle('open');
+  }
+
+  document.addEventListener('click', () => {
+    document.getElementById('userDropdown')?.classList.remove('open');
+  });
+
+  // ══════════════════════════════════════
+  // PANEL SWITCHING
+  // ══════════════════════════════════════
+
   function switchPanel(name) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -506,16 +808,50 @@
       if (b.textContent.trim().toLowerCase().includes(name)) b.classList.add('active');
     });
     const vBtn = document.getElementById('viewerToggleBtn');
-    if (name === 'chat' && activeDocId) { vBtn.style.display = 'block'; }
-    else { vBtn.style.display = 'none'; closePdfPanel(); }
-    if (name === 'documents') loadDocuments();
-    if (name === 'chat' && !activeDocId) {
-      document.getElementById('pageTitle').textContent = 'Chat';
-      document.getElementById('chatInput').placeholder = 'Ask anything about your documents...';
+    const backBtn = document.getElementById('backToAllBtn');
+    if (name === 'chat' && activeDocId) {
+      vBtn.style.display = 'block';
+      backBtn.classList.add('visible');
+    } else {
+      vBtn.style.display = 'none';
+      backBtn.classList.remove('visible');
+      closePdfPanel();
     }
+    if (name === 'documents') loadDocuments();
   }
 
-  // ── TOAST ──
+  function backToGlobalChat() {
+    activeDocId = null;
+    activeDocName = null;
+    currentPdfDocId = null;
+    closePdfPanel();
+
+    // Reset chat
+    const msgs = document.getElementById('chatMessages');
+    msgs.innerHTML = `
+      <div class="empty-chat" id="emptyChat">
+        <div class="empty-chat-icon">🧠</div>
+        <div class="empty-chat-title">Ask anything about your documents</div>
+        <div class="empty-chat-sub">VaultIQ searches all your documents and answers with exact citations.</div>
+        <div class="suggestion-chips">
+          <div class="chip" onclick="useChip(this)">What is the overall percentile?</div>
+          <div class="chip" onclick="useChip(this)">Summarize key points</div>
+          <div class="chip" onclick="useChip(this)">What are the important dates?</div>
+          <div class="chip" onclick="useChip(this)">Who is the candidate?</div>
+        </div>
+      </div>`;
+
+    document.getElementById('pageTitle').textContent = 'Chat';
+    document.getElementById('chatInput').placeholder = 'Ask anything about your documents...';
+    document.getElementById('viewerToggleBtn').style.display = 'none';
+    document.getElementById('backToAllBtn').classList.remove('visible');
+    renderSidebarDocs();
+  }
+
+  // ══════════════════════════════════════
+  // TOAST
+  // ══════════════════════════════════════
+
   function showToast(msg, type = '') {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -523,10 +859,14 @@
     setTimeout(() => t.className = 'toast', 3000);
   }
 
-  // ── DOCUMENTS ──
+  // ══════════════════════════════════════
+  // DOCUMENTS
+  // ══════════════════════════════════════
+
   async function loadDocuments() {
     try {
-      const res = await fetch(`${API}/documents?uploadedBy=${USER}`);
+      const res = await fetch(`${API}/documents`, { credentials: 'include' });
+      if (res.status === 401) { showAuth(); return; }
       documents = await res.json();
       renderDocuments();
       renderSidebarDocs();
@@ -578,29 +918,23 @@
     `).join('');
   }
 
-  // View doc directly
   function viewDoc(id, name) {
     activeDocId = id;
     activeDocName = name;
     switchPanel('chat');
-    // Just open PDF panel without clearing chat
     openPdfAtPage(id, name, 1);
   }
 
-  // ── OPEN DOC CHAT ──
   function openDocChat(id, name) {
     activeDocId = id;
     activeDocName = name;
     currentPdfDocId = id;
     switchPanel('chat');
-
     const msgs = document.getElementById('chatMessages');
     msgs.innerHTML = '';
     const emptyChat = document.getElementById('emptyChat');
     if (emptyChat) emptyChat.remove();
-
     const doc = documents.find(d => d.id === id);
-
     const div = document.createElement('div');
     div.className = 'message ai';
     div.innerHTML = `
@@ -616,34 +950,33 @@
         <div style="font-size:13px;line-height:1.6;color:var(--text-muted);padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
           ${doc?.summary || 'No summary available.'}
         </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">
-          💡 Click any citation chip to open the PDF at that exact page.
-        </div>
         <div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:10px">
           <div class="chip" onclick="useChip(this)">Summarize key points</div>
           <div class="chip" onclick="useChip(this)">Important dates</div>
           <div class="chip" onclick="useChip(this)">Key numbers</div>
           <div class="chip" onclick="useChip(this)">Who is mentioned?</div>
         </div>
-      </div>
-    `;
+      </div>`;
     msgs.appendChild(div);
-
     document.getElementById('chatInput').placeholder = `Ask anything about ${name}...`;
     document.getElementById('pageTitle').textContent = `Chat — ${name}`;
     document.getElementById('viewerToggleBtn').style.display = 'block';
+    document.getElementById('backToAllBtn').classList.add('visible');
     renderSidebarDocs();
   }
 
   async function deleteDoc(id) {
     if (!confirm('Delete this document?')) return;
-    await fetch(`${API}/documents/${id}`, { method: 'DELETE' });
+    await fetch(`${API}/documents/${id}`, { method: 'DELETE', credentials: 'include' });
     if (activeDocId === id) { activeDocId = null; activeDocName = null; }
     showToast('Document deleted', 'success');
     loadDocuments();
   }
 
-  // ── PDF VIEWER ──
+  // ══════════════════════════════════════
+  // PDF VIEWER
+  // ══════════════════════════════════════
+
   function togglePdfPanel() {
     if (pdfPanelOpen) closePdfPanel();
     else openPdfAtPage(activeDocId, activeDocName, 1);
@@ -654,10 +987,8 @@
     const iframe = document.getElementById('pdfIframe');
     const title = document.getElementById('pdfPanelTitle');
     const btn = document.getElementById('viewerToggleBtn');
-
     currentPdfDocId = docId;
-    const url = `${API}/documents/${docId}/file#page=${page}`;
-    iframe.src = url;
+    iframe.src = `${API}/documents/${docId}/file#page=${page}`;
     title.textContent = docName || 'Document';
     panel.classList.add('open');
     btn.textContent = '✕ Close PDF';
@@ -681,7 +1012,10 @@
     if (currentPdfDocId) window.open(`${API}/documents/${currentPdfDocId}/file`, '_blank');
   }
 
-  // ── CONTEXT TOGGLE ──
+  // ══════════════════════════════════════
+  // UPLOAD
+  // ══════════════════════════════════════
+
   function toggleContext() {
     const box = document.getElementById('contextBox');
     const icon = document.getElementById('ctxIcon');
@@ -689,7 +1023,6 @@
     icon.textContent = box.classList.contains('show') ? '−' : '＋';
   }
 
-  // ── UPLOAD — STAGED FLOW ──
   let stagedFile = null;
 
   function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
@@ -707,7 +1040,6 @@
     document.getElementById('stagedFileName').textContent = file.name;
     document.getElementById('stagedArea').style.display = 'block';
     document.getElementById('resultCard').classList.remove('show');
-    // Reset context
     document.getElementById('contextInput').value = '';
     document.getElementById('contextBox').classList.remove('show');
     document.getElementById('ctxIcon').textContent = '＋';
@@ -721,27 +1053,19 @@
 
   async function submitUpload() {
     if (!stagedFile) return;
-    await uploadFile(stagedFile);
-  }
-
-  async function uploadFile(file) {
     const status = document.getElementById('uploadStatus');
     const statusText = document.getElementById('uploadStatusText');
     const resultCard = document.getElementById('resultCard');
     const context = document.getElementById('contextInput').value.trim();
-
     status.classList.add('show');
     resultCard.classList.remove('show');
     document.getElementById('stagedArea').style.display = 'none';
-    statusText.innerHTML = `Processing <strong>${file.name}</strong>${context ? ' with custom context' : ''}...`;
-
+    statusText.innerHTML = `Processing <strong>${stagedFile.name}</strong>...`;
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('uploadedBy', USER);
+    formData.append('file', stagedFile);
     if (context) formData.append('context', context);
-
     try {
-      const res = await fetch(`${API}/upload`, { method: 'POST', body: formData });
+      const res = await fetch(`${API}/upload`, { method: 'POST', body: formData, credentials: 'include' });
       const data = await res.json();
       status.classList.remove('show');
       if (data.success) {
@@ -776,12 +1100,14 @@
         <span class="tag">✅ Processed</span>
         <span class="tag">${data.fileType}</span>
         <span class="tag">${data.totalChunks} chunks</span>
-      </div>
-    `;
+      </div>`;
     card.classList.add('show');
   }
 
-  // ── CHAT ──
+  // ══════════════════════════════════════
+  // CHAT
+  // ══════════════════════════════════════
+
   let chatLoading = false;
 
   function useChip(el) {
@@ -801,8 +1127,7 @@
     if (!question) return;
     const ec = document.getElementById('emptyChat');
     if (ec) ec.remove();
-    input.value = '';
-    input.style.height = 'auto';
+    input.value = ''; input.style.height = 'auto';
     chatLoading = true;
     document.getElementById('sendBtn').disabled = true;
     appendMessage(question, 'user');
@@ -811,14 +1136,16 @@
       const res = await fetch(`${API}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, uploadedBy: USER, documentIds: activeDocId ? [activeDocId] : null })
+        credentials: 'include',
+        body: JSON.stringify({ question, documentIds: activeDocId ? [activeDocId] : null })
       });
+      if (res.status === 401) { showAuth(); return; }
       const data = await res.json();
       removeTyping(tid);
       appendMessage(data.answer, 'ai', data.citations);
     } catch (e) {
       removeTyping(tid);
-      appendMessage('Failed to get response. Make sure the server is running.', 'ai');
+      appendMessage('Failed to get response.', 'ai');
     }
     chatLoading = false;
     document.getElementById('sendBtn').disabled = false;
@@ -831,17 +1158,14 @@
     const citHtml = citations?.length ? `
       <div class="citations">
         ${citations.map(c => `
-          <div class="citation-chip" onclick="openPdfAtPage('${c.documentId}','${esc(c.documentName)}',${c.pageNumber})" title="Click to open PDF at Page ${c.pageNumber}">
+          <div class="citation-chip" onclick="openPdfAtPage('${c.documentId}','${esc(c.documentName)}',${c.pageNumber})">
             📎 ${c.documentName} · Page ${c.pageNumber} · Para ${c.paragraphNumber}
             <span class="citation-open">↗ open</span>
-          </div>
-        `).join('')}
-      </div>
-    ` : '';
+          </div>`).join('')}
+      </div>` : '';
     div.innerHTML = `
       <div class="avatar ${role}">${role === 'ai' ? '🧠' : '👤'}</div>
-      <div class="bubble">${text.replace(/\n/g, '<br>')}${citHtml}</div>
-    `;
+      <div class="bubble">${text.replace(/\n/g, '<br>')}${citHtml}</div>`;
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
   }
@@ -850,8 +1174,7 @@
     const msgs = document.getElementById('chatMessages');
     const id = 'typing-' + Date.now();
     const div = document.createElement('div');
-    div.className = 'message ai';
-    div.id = id;
+    div.className = 'message ai'; div.id = id;
     div.innerHTML = `<div class="avatar ai">🧠</div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
@@ -860,7 +1183,10 @@
 
   function removeTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
 
-  // ── SEARCH ──
+  // ══════════════════════════════════════
+  // SEARCH
+  // ══════════════════════════════════════
+
   async function doSearch() {
     const query = document.getElementById('searchInput').value.trim();
     if (!query) return;
@@ -869,11 +1195,12 @@
     try {
       const res = await fetch(`${API}/search`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, uploadedBy: USER })
+        credentials: 'include',
+        body: JSON.stringify({ query })
       });
       const data = await res.json();
       if (!data.length) {
-        results.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔎</div><div class="empty-state-title">No results found</div><div class="empty-state-sub">Try different keywords or upload more documents</div></div>`;
+        results.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔎</div><div class="empty-state-title">No results found</div></div>`;
         return;
       }
       results.innerHTML = data.map(doc => `
@@ -884,14 +1211,16 @@
             <div class="src-type">${doc.fileType || 'document'}</div>
           </div>
           <div class="src-summary">${doc.summary || 'No summary available'}</div>
-        </div>
-      `).join('');
+        </div>`).join('');
     } catch (e) {
       results.innerHTML = `<div style="color:var(--accent2);font-size:13px;padding:20px 0">Search failed.</div>`;
     }
   }
 
-  loadDocuments();
+  // ══════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════
+  checkAuth();
 </script>
 </body>
 </html>
