@@ -34,8 +34,9 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**", "/oauth2/**",
-                                "/login/**", "/api/v1/health").permitAll()
-                        .anyRequest().authenticated()
+                                "/login/**", "/api/v1/health",
+                                "/", "/index.html", "/**.html",
+                                "/**.css", "/**.js").permitAll()
                 )
                 .oauth2Login(oauth -> oauth
                         .authorizationEndpoint(a -> a.baseUri("/oauth2/authorize"))

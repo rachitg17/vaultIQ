@@ -27,8 +27,8 @@ public class User {
     private AuthProvider provider;
 
     private String providerId;
-
-    @Column(nullable = false)
+    @Builder.Default
+    @Column(nullable = false,columnDefinition = "boolean default true")
     private boolean enabled = true;
 
     private LocalDateTime createdAt;
