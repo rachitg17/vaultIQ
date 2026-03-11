@@ -28,30 +28,29 @@ public class ChatService {
     public ChatResponse chat(ChatRequest request) {
         log.info("Chat request: {}", request.getQuestion());
 
-        // Step 1: Find relevant documents
         List<Document> documents = getRelevantDocuments(request);
         if (documents.isEmpty()) {
-            return ChatResponse.builder()
-                    .answer("No documents found. Please upload documents first.")
-                    .success(false)
-                    .build();
+            return ChatResponse.builder().answer("No docs found.").success(false).build();
         }
 
-        // Step 2: Find relevant chunks using keyword matching
-        List<DocumentChunk> relevantChunks = findRelevantChunks(
-                request.getQuestion(), documents);
-
-        // Step 3: Build context from chunks
+        List<DocumentChunk> relevantChunks = findRelevantChunks(request.getQuestion(), documents);
         String context = buildContext(relevantChunks);
 
-        // Step 4: Ask Gemini
-        String answer = geminiService.answerQuestion(request.getQuestion(), context);
 
-        // Step 5: Build citations
-        List<ChatResponse.Citation> citations = buildCitations(relevantChunks);
+        String rawAnswer = geminiService.answerQuestion(request.getQuestion(), context);
+
+        List<DocumentChunk> usedChunks = relevantChunks.stream()
+                .filter(chunk -> rawAnswer.contains(chunk.getDocument().getFileName()) ||
+                        rawAnswer.contains(chunk.getChunkText().substring(0, Math.min(20, chunk.getChunkText().length()))))
+                .collect(Collectors.toList());
+        if (usedChunks.isEmpty() && !relevantChunks.isEmpty()) {
+            usedChunks = List.of(relevantChunks.getFirst());
+        }
+
+        List<ChatResponse.Citation> citations = buildCitations(usedChunks);
 
         return ChatResponse.builder()
-                .answer(answer)
+                .answer(rawAnswer)
                 .citations(citations)
                 .success(true)
                 .build();
@@ -81,7 +80,7 @@ public class ChatService {
                 .map(chunk -> Map.entry(chunk, scoreChunk(chunk.getChunkText(), questionWords, questionLower)))
                 .sorted((a, b) -> b.getValue() - a.getValue())
                 .limit(10)
-                .collect(Collectors.toList());
+                .toList();
 
         if (scored.isEmpty()) return new ArrayList<>();
 
@@ -89,19 +88,19 @@ public class ChatService {
         int secondScore = scored.size() > 1 ? scored.get(1).getValue() : 0;
 
         // If top document is clearly more relevant, focus on that doc only
-        if (topScore > secondScore + 3) {
-            String topDocId = scored.get(0).getKey().getDocument().getId();
+        if (topScore > secondScore +2) {
+            String topDocId = scored.getFirst().getKey().getDocument().getId();
             return scored.stream()
                     .filter(e -> e.getKey().getDocument().getId().equals(topDocId))
                     .map(Map.Entry::getKey)
-                    .limit(5)
+                    .limit(3)
                     .collect(Collectors.toList());
         }
 
         // Otherwise return top 5 across all docs
         return scored.stream()
                 .map(Map.Entry::getKey)
-                .limit(5)
+                .limit(3)
                 .collect(Collectors.toList());
     }
 

@@ -95,27 +95,21 @@ public class GeminiService {
 
     public String answerQuestion(String question, String context) {
         String prompt =
-                "You are an expert document analysis assistant with deep understanding of structured and unstructured documents.\n\n" +
+                "You are an expert document analysis assistant.\n\n" +
                         "DOCUMENT CONTEXT:\n" +
                         "================\n" +
                         context +
                         "\n================\n\n" +
                         "QUESTION: " + question + "\n\n" +
                         "RULES FOR ANSWERING:\n" +
-                        "1. TABULAR DATA: When context contains | separated rows, treat the first row as column headers. " +
-                        "Map each value to its header strictly by position left to right. " +
-                        "Never shift or skip columns. Each | separates exactly one column.\n" +
-                        "2. NUMERICAL DATA: Extract numbers exactly as they appear. Do not round, estimate, or calculate unless explicitly asked.\n" +
-                        "3. NAMED ENTITIES: Match names, IDs, dates, and labels exactly as written in the context.\n" +
-                        "4. MULTI-SECTION DOCUMENTS: Context may contain multiple pages or sections. " +
-                        "Search all sections before concluding the answer is not present.\n" +
-                        "5. AMBIGUOUS QUESTIONS: If the question could refer to multiple values (e.g. percentage vs percentile, " +
-                        "theory vs total), return all relevant values with their labels clearly stated.\n" +
-                        "6. CALCULATIONS: Only perform calculations if explicitly asked. Otherwise return raw values from the document.\n" +
-                        "7. NOT FOUND: Only say you cannot find the information if it is genuinely absent from all sections of the context. " +
-                        "Do not say not found just because the data format is complex.\n" +
-                        "8. CONCISENESS: Answer directly. No disclaimers, no restating the question, no unnecessary explanation unless asked.\n\n" +
+                        "1. PRESENTATION: Use Markdown. Use **bolding** for key values and bullet points for lists. Do NOT use the pipe symbol (|) in your response.\n" +
+                        "2. TABULAR DATA: If the context has pipe-separated data, convert it into a clean bulleted list or a standard Markdown table (without extra pipes). Map headers to values clearly.\n" +
+                        "3. CITATION: When using information from a specific document, mention its filename naturally in the sentence (e.g., 'In Resume.pdf, it states...').\n" +
+                        "4. ACCURACY: Match names, numbers, and dates exactly as written. Do not calculate unless asked.\n" +
+                        "5. MULTI-SOURCE: If information comes from multiple documents, synthesize them into a single coherent answer, mentioning each source.\n" +
+                        "6. CONCISENESS: Answer directly. No intro, no 'Based on the document provided', just the facts.\n\n" +
                         "ANSWER:";
+
         return generateContent(prompt);
     }
 
