@@ -24,10 +24,14 @@ public class Document {
     private String fileName;
 
     @Column(nullable = false)
-    private String fileType; // resume, contract, aadhaar, pan, etc.
+    private String fileType;
 
     @Column(name = "file_path")
-    private String filePath;
+    private String filePath; // legacy — no longer used
+
+    // Supabase Storage object key e.g. "documents/uuid_filename.pdf"
+    @Column(name = "storage_key")
+    private String storageKey;
 
     @Column(columnDefinition = "TEXT")
     private String extractedText;
@@ -48,9 +52,8 @@ public class Document {
     private Long fileSize;
 
     @Column(columnDefinition = "TEXT")
-    private String tags; // comma separated tags
+    private String tags;
 
     @Column(columnDefinition = "TEXT")
-    private String keyEntities; // names, dates, amounts as JSON string
-
+    private String keyEntities;
 }

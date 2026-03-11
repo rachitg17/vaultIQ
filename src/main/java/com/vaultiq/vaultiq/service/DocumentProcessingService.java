@@ -23,22 +23,29 @@ public class DocumentProcessingService {
     private final DocumentRepository documentRepository;
     private final DocumentChunkRepository documentChunkRepository;
     private final GeminiService geminiService;
+    private final SupabaseStorageService storageService;
 
     private static final int CHUNK_SIZE = 500;
 
     public Document processDocument(MultipartFile file, String uploadedBy, String context) throws Exception {
         log.info("Processing document: {}", file.getOriginalFilename());
 
-        // Save file to disk FIRST — avoids multipart stream being consumed
-        String uploadDir = System.getProperty("user.home") + "/vaultiq-uploads/";
-        new java.io.File(uploadDir).mkdirs();
-        String tempName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        java.io.File savedFile = new java.io.File(uploadDir + tempName);
-        file.transferTo(savedFile);
+        // Read bytes immediately before stream is consumed
+        byte[] fileBytes = file.getBytes();
 
-        // Step 1: Extract text via Groq vision → PDFBox → Tika fallback chain
-        String extractedText = extractTextFromFile(savedFile);
+        // Write to temp file for PDFBox/Tika processing
+        String tempDir = System.getProperty("java.io.tmpdir") + "/vaultiq/";
+        new java.io.File(tempDir).mkdirs();
+        String tempName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        java.io.File tempFile = new java.io.File(tempDir + tempName);
+        java.nio.file.Files.write(tempFile.toPath(), fileBytes);
+
+        // Step 1: Extract text
+        String extractedText = extractTextFromFile(tempFile);
         log.info("Extracted {} characters from {}", extractedText.length(), file.getOriginalFilename());
+
+        // Clean up temp file
+        tempFile.delete();
 
         // Prepend user context if provided
         String textForAI = (context != null && !context.isBlank())
@@ -47,12 +54,12 @@ public class DocumentProcessingService {
 
         // Step 2: AI summarization
         String aiAnalysis = geminiService.summarizeDocument(textForAI);
-        String summary = parseField(aiAnalysis, "SUMMARY");
-        String fileType = parseField(aiAnalysis, "TYPE");
-        String entities = parseField(aiAnalysis, "ENTITIES");
-        String tags = parseField(aiAnalysis, "TAGS");
+        String summary   = parseField(aiAnalysis, "SUMMARY");
+        String fileType  = parseField(aiAnalysis, "TYPE");
+        String entities  = parseField(aiAnalysis, "ENTITIES");
+        String tags      = parseField(aiAnalysis, "TAGS");
 
-        // Step 3: Save document to DB
+        // Step 3: Save document record first to get the UUID
         Document document = Document.builder()
                 .fileName(file.getOriginalFilename())
                 .fileType(fileType != null ? fileType : "unknown")
@@ -63,49 +70,67 @@ public class DocumentProcessingService {
                 .fileSize(file.getSize())
                 .keyEntities(entities)
                 .tags(tags)
+                .totalPages(estimatePages(extractedText))
                 .build();
 
         document = documentRepository.save(document);
-        log.info("Saved document with id: {}", document.getId());
+        log.info("Saved document record with id: {}", document.getId());
 
-        // Step 4: Chunk and save
+        // Step 4: Upload to Supabase Storage using document ID as key
+        String storageKey = "documents/" + document.getId() + "_" + file.getOriginalFilename();
+        storageService.upload(storageKey, fileBytes, "application/pdf");
+        document.setStorageKey(storageKey);
+        documentRepository.save(document);
+        log.info("Uploaded to Supabase Storage: {}", storageKey);
+
+        // Step 5: Chunk and save
         List<DocumentChunk> chunks = chunkDocument(textForAI, document);
         documentChunkRepository.saveAll(chunks);
-
-        // Step 5: Update pages + rename file to include document ID
-        document.setTotalPages(estimatePages(extractedText));
-        java.io.File renamedFile = new java.io.File(uploadDir + document.getId() + "_" + file.getOriginalFilename());
-        savedFile.renameTo(renamedFile);
-        document.setFilePath(renamedFile.getAbsolutePath());
-        documentRepository.save(document);
-
         log.info("Created {} chunks for document: {}", chunks.size(), document.getFileName());
+
         return document;
     }
 
     public ResponseEntity<byte[]> getDocumentFile(String id) {
         try {
             Document doc = documentRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Document not found"));
+                    .orElseThrow(() -> new RuntimeException("Document not found: " + id));
 
-            java.nio.file.Path filePath = java.nio.file.Paths.get(doc.getFilePath());
-            byte[] fileBytes = java.nio.file.Files.readAllBytes(filePath);
+            String storageKey = doc.getStorageKey();
 
-            return ResponseEntity.ok()
-                    .header("Content-Type", "application/pdf")
-                    .header("Content-Disposition", "inline; filename=\"" + doc.getFileName() + "\"")
-                    .header("Access-Control-Allow-Origin", "*")
-                    .body(fileBytes);
+            // Fallback: try legacy filePath from disk (won't work on Render but safe locally)
+            if (storageKey == null || storageKey.isBlank()) {
+                log.warn("No storage key for document {}, trying legacy filePath", id);
+                if (doc.getFilePath() != null) {
+                    byte[] fileBytes = java.nio.file.Files.readAllBytes(
+                            java.nio.file.Paths.get(doc.getFilePath()));
+                    return buildPdfResponse(fileBytes, doc.getFileName());
+                }
+                return ResponseEntity.notFound().build();
+            }
+
+            byte[] fileBytes = storageService.download(storageKey);
+            return buildPdfResponse(fileBytes, doc.getFileName());
+
         } catch (Exception e) {
             log.error("Failed to retrieve file for doc {}: {}", id, e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
 
+    private ResponseEntity<byte[]> buildPdfResponse(byte[] fileBytes, String fileName) {
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "inline; filename=\"" + fileName + "\"")
+                .header("Content-Length", String.valueOf(fileBytes.length))
+                .header("X-Frame-Options", "SAMEORIGIN")
+                .body(fileBytes);
+    }
+
     private String extractTextFromFile(java.io.File file) throws Exception {
         if (file.getName().toLowerCase().endsWith(".pdf")) {
 
-            // Primary — Groq vision (best for tables, forms, designed PDFs)
+            // Primary — Groq vision
             try {
                 org.apache.pdfbox.pdmodel.PDDocument pdDoc =
                         org.apache.pdfbox.pdmodel.PDDocument.load(file);
@@ -126,14 +151,13 @@ public class DocumentProcessingService {
 
                 pdDoc.close();
                 String result = fullText.toString().trim();
-                log.info("Groq vision extracted {} chars from {} pages", result.length(), totalPages);
                 if (result.length() > 100) return result;
 
             } catch (Exception e) {
-                log.warn("Groq vision failed, falling back to PDFBox text stripper: {}", e.getMessage());
+                log.warn("Groq vision failed, falling back to PDFBox: {}", e.getMessage());
             }
 
-            // Fallback 1 — PDFBox text stripper (good for native text PDFs)
+            // Fallback 1 — PDFBox text stripper
             try {
                 org.apache.pdfbox.pdmodel.PDDocument pdDoc =
                         org.apache.pdfbox.pdmodel.PDDocument.load(file);
@@ -143,15 +167,15 @@ public class DocumentProcessingService {
                 String text = stripper.getText(pdDoc);
                 pdDoc.close();
                 if (text.trim().length() > 100) {
-                    log.info("PDFBox text stripper extracted {} chars", text.length());
+                    log.info("PDFBox extracted {} chars", text.length());
                     return text;
                 }
             } catch (Exception e) {
-                log.warn("PDFBox fallback failed, falling back to Tika: {}", e.getMessage());
+                log.warn("PDFBox failed, trying Tika: {}", e.getMessage());
             }
         }
 
-        // Fallback 2 — Tika (handles non-PDF and edge cases)
+        // Fallback 2 — Tika
         try (InputStream inputStream = new java.io.FileInputStream(file)) {
             org.apache.tika.metadata.Metadata metadata = new org.apache.tika.metadata.Metadata();
             org.apache.tika.parser.AutoDetectParser parser =
@@ -205,9 +229,7 @@ public class DocumentProcessingService {
             if (field.equals("SUMMARY")) {
                 for (String line : lines) {
                     String trimmed = line.trim();
-                    if (trimmed.length() > 30 && !trimmed.contains(":")) {
-                        return trimmed;
-                    }
+                    if (trimmed.length() > 30 && !trimmed.contains(":")) return trimmed;
                 }
             }
         } catch (Exception e) {
@@ -237,8 +259,18 @@ public class DocumentProcessingService {
     }
 
     public void deleteDocument(String id) {
+        // Delete chunks
         documentChunkRepository.deleteAll(
                 documentChunkRepository.findByDocumentIdOrderByChunkIndex(id));
+
+        // Delete from Supabase Storage
+        documentRepository.findById(id).ifPresent(doc -> {
+            if (doc.getStorageKey() != null) {
+                storageService.delete(doc.getStorageKey());
+            }
+        });
+
+        // Delete DB record
         documentRepository.deleteById(id);
     }
 }
