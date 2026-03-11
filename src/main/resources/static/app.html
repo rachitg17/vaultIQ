@@ -244,6 +244,12 @@
     .citations { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
     .citation-chip { display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: rgba(109,250,189,0.06); border: 1px solid rgba(109,250,189,0.15); border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--accent3); cursor: pointer; transition: all 0.15s; }
     .citation-chip:hover { background: rgba(109,250,189,0.12); border-color: rgba(109,250,189,0.35); transform: translateX(3px); }
+    .citation-chip.pulsing { animation: citationPulse 0.6s ease 3; border-color: var(--accent3); background: rgba(109,250,189,0.18); }
+    @keyframes citationPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(109,250,189,0.5); background: rgba(109,250,189,0.18); }
+      50%  { box-shadow: 0 0 0 6px rgba(109,250,189,0); background: rgba(109,250,189,0.32); }
+      100% { box-shadow: 0 0 0 0 rgba(109,250,189,0); background: rgba(109,250,189,0.18); }
+    }
     .citation-open { margin-left: auto; font-size: 9px; opacity: 0.5; }
 
     /* BACK TO ALL DOCS BUTTON */
@@ -1158,7 +1164,7 @@
     const citHtml = citations?.length ? `
       <div class="citations">
         ${citations.map(c => `
-          <div class="citation-chip" onclick="openPdfAtPage('${c.documentId}','${esc(c.documentName)}',${c.pageNumber})">
+          <div class="citation-chip" onclick="citationClick(this,'${c.documentId}','${esc(c.documentName)}',${c.pageNumber})">
             📎 ${c.documentName} · Page ${c.pageNumber} · Para ${c.paragraphNumber}
             <span class="citation-open">↗ open</span>
           </div>`).join('')}
@@ -1180,6 +1186,15 @@
     msgs.scrollTop = msgs.scrollHeight;
     return id;
   }
+  function citationClick(el, docId, docName, page) {
+  // Open PDF at page
+  openPdfAtPage(docId, docName, page);
+  // Pulse the chip
+  el.classList.remove('pulsing');
+  void el.offsetWidth; // force reflow to restart animation
+  el.classList.add('pulsing');
+  el.addEventListener('animationend', () => el.classList.remove('pulsing'), { once: true });
+}
 
   function removeTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
 

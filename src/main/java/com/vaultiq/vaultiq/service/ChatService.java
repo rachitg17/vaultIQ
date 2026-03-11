@@ -23,6 +23,13 @@ public class ChatService {
     private final DocumentChunkRepository documentChunkRepository;
     private final GeminiService geminiService;
 
+    // Keywords that signal the user wants to compare across documents
+    private static final List<String> COMPARISON_KEYWORDS = List.of(
+            "compare", "comparison", "better", "worse", "difference", "different",
+            "which one", "vs", "versus", "both", "all", "across", "between",
+            "contrast", "similar", "same", "common", "combined", "together"
+    );
+
     @Transactional
     public ChatResponse chat(ChatRequest request) {
         log.info("Chat request: {}", request.getQuestion());
@@ -35,19 +42,27 @@ public class ChatService {
                     .build();
         }
 
-        // FIX 1: If single doc chat, skip cross-doc scoring entirely
         boolean isSingleDoc = request.getDocumentIds() != null
                 && request.getDocumentIds().size() == 1;
 
-        List<DocumentChunk> relevantChunks = isSingleDoc
-                ? findChunksForSingleDoc(request.getQuestion(), documents.getFirst())
-                : findRelevantChunks(request.getQuestion(), documents);
+        boolean isComparison = isComparisonQuery(request.getQuestion());
+        log.info("Query type — singleDoc: {}, comparison: {}", isSingleDoc, isComparison);
+
+        List<DocumentChunk> relevantChunks;
+
+        if (isSingleDoc) {
+            // Single doc chat — score only within that doc
+            relevantChunks = findChunksForSingleDoc(request.getQuestion(), documents.getFirst());
+        } else if (isComparison && documents.size() > 1) {
+            // Comparison query — force chunks from ALL docs, guaranteed representation
+            relevantChunks = findChunksForComparison(request.getQuestion(), documents);
+        } else {
+            // Normal multi-doc — scored relevance with gap detection
+            relevantChunks = findRelevantChunks(request.getQuestion(), documents);
+        }
 
         String context = buildContext(relevantChunks);
         String rawAnswer = geminiService.answerQuestion(request.getQuestion(), context);
-
-        // FIX 2: Build citations only from the docs whose chunks were actually used
-        // Group chunks by document, pick the top-scoring document's chunks as citations
         List<ChatResponse.Citation> citations = buildSmartCitations(relevantChunks, rawAnswer);
 
         return ChatResponse.builder()
@@ -55,6 +70,11 @@ public class ChatService {
                 .citations(citations)
                 .success(true)
                 .build();
+    }
+
+    private boolean isComparisonQuery(String question) {
+        String lower = question.toLowerCase();
+        return COMPARISON_KEYWORDS.stream().anyMatch(lower::contains);
     }
 
     private List<Document> getRelevantDocuments(ChatRequest request) {
@@ -67,7 +87,7 @@ public class ChatService {
         return documentRepository.findAll();
     }
 
-    // FIX 1: Single doc — just score within that doc, no cross-doc noise
+    // Single doc — score within that doc only
     private List<DocumentChunk> findChunksForSingleDoc(String question, Document doc) {
         List<DocumentChunk> chunks =
                 documentChunkRepository.findByDocumentIdOrderByChunkIndex(doc.getId());
@@ -84,6 +104,36 @@ public class ChatService {
                 .collect(Collectors.toList());
     }
 
+    // Comparison — take top N chunks from EACH document, guaranteed representation
+    private List<DocumentChunk> findChunksForComparison(String question, List<Document> documents) {
+        String questionLower = question.toLowerCase();
+        String[] questionWords = questionLower.split("\\s+");
+
+        List<DocumentChunk> result = new ArrayList<>();
+
+        // Balance chunks per doc: 2 docs → 4 each, 4 docs → 2 each, max 8 total
+        int chunksPerDoc = Math.max(1, 8 / documents.size());
+
+        for (Document doc : documents) {
+            List<DocumentChunk> chunks =
+                    documentChunkRepository.findByDocumentIdOrderByChunkIndex(doc.getId());
+
+            List<DocumentChunk> topChunks = chunks.stream()
+                    .map(chunk -> Map.entry(chunk,
+                            scoreChunk(chunk.getChunkText(), questionWords, questionLower)))
+                    .sorted((a, b) -> b.getValue() - a.getValue())
+                    .limit(chunksPerDoc)
+                    .map(Map.Entry::getKey)
+                    .toList();
+
+            log.info("Comparison: picked {} chunks from '{}'", topChunks.size(), doc.getFileName());
+            result.addAll(topChunks);
+        }
+
+        return result;
+    }
+
+    // Normal multi-doc — scored with gap detection
     private List<DocumentChunk> findRelevantChunks(String question, List<Document> documents) {
         List<DocumentChunk> allChunks = new ArrayList<>();
         for (Document doc : documents) {
@@ -106,11 +156,10 @@ public class ChatService {
         int topScore = scored.get(0).getValue();
         int secondScore = scored.size() > 1 ? scored.get(1).getValue() : 0;
 
-        // FIX 3: Relative gap — top doc must score at least 2x the second doc
-        // Prevents noise docs with coincidental keyword matches from sneaking in
-        if (topScore > 0 && topScore >= secondScore +2) {
+        // Only focus on single doc if it's clearly dominant (2x the next best)
+        if (topScore > 0 && topScore >= secondScore * 2) {
             String topDocId = scored.getFirst().getKey().getDocument().getId();
-            log.info("Clear winner doc: {} (score {} vs {})", topDocId, topScore, secondScore);
+            log.info("Clear winner doc (score {} vs {}), focusing on it", topScore, secondScore);
             return scored.stream()
                     .filter(e -> e.getKey().getDocument().getId().equals(topDocId))
                     .map(Map.Entry::getKey)
@@ -118,7 +167,6 @@ public class ChatService {
                     .collect(Collectors.toList());
         }
 
-        // Otherwise return top chunks across docs (still capped at 5)
         return scored.stream()
                 .map(Map.Entry::getKey)
                 .limit(5)
@@ -135,7 +183,6 @@ public class ChatService {
             }
         }
 
-        // Sliding window for partial phrase matches
         for (int i = 0; i <= fullQuestion.length() - 3; i++) {
             String sub = fullQuestion.substring(i,
                     Math.min(i + 5, fullQuestion.length()));
@@ -144,7 +191,6 @@ public class ChatService {
             }
         }
 
-        // Boost numeric data (prices, percentiles, dates)
         if (lowerText.matches(".*\\d+\\.\\d+.*")) score += 2;
 
         return score;
@@ -154,8 +200,7 @@ public class ChatService {
     private String buildContext(List<DocumentChunk> chunks) {
         StringBuilder context = new StringBuilder();
         for (DocumentChunk chunk : chunks) {
-            log.info("CHUNK [{}] page={} score context building",
-                    chunk.getDocument().getFileName(), chunk.getPageNumber());
+            log.info("CHUNK [{}] page={}", chunk.getDocument().getFileName(), chunk.getPageNumber());
             context.append("--- From: ")
                     .append(chunk.getDocument().getFileName())
                     .append(" | Page: ").append(chunk.getPageNumber())
@@ -167,9 +212,6 @@ public class ChatService {
         return context.toString();
     }
 
-    // FIX 2: Smart citations — only cite chunks whose document is actually referenced
-    // Primary: match by filename mention in answer
-    // Fallback: if no filename match, cite only from the top chunk's document
     private List<ChatResponse.Citation> buildSmartCitations(
             List<DocumentChunk> chunks, String answer) {
 
@@ -177,11 +219,9 @@ public class ChatService {
 
         String answerLower = answer.toLowerCase();
 
-        // Try to match which documents are actually mentioned in the answer
         Set<String> mentionedDocIds = chunks.stream()
                 .filter(chunk -> {
                     String fname = chunk.getDocument().getFileName().toLowerCase();
-                    // Check filename or filename without extension
                     String fnameNoExt = fname.contains(".")
                             ? fname.substring(0, fname.lastIndexOf('.'))
                             : fname;
@@ -193,24 +233,24 @@ public class ChatService {
         List<DocumentChunk> citedChunks;
 
         if (!mentionedDocIds.isEmpty()) {
-            // Only cite chunks from documents actually mentioned in answer
             citedChunks = chunks.stream()
                     .filter(c -> mentionedDocIds.contains(c.getDocument().getId()))
                     .collect(Collectors.toList());
         } else {
-            // Fallback: cite only the top chunk's document (most relevant one)
-            String topDocId = chunks.get(0).getDocument().getId();
-            citedChunks = chunks.stream()
-                    .filter(c -> c.getDocument().getId().equals(topDocId))
-                    .collect(Collectors.toList());
+            // Fallback: one citation per unique doc in context
+            Map<String, DocumentChunk> onePerDoc = new LinkedHashMap<>();
+            for (DocumentChunk c : chunks) {
+                onePerDoc.putIfAbsent(c.getDocument().getId(), c);
+            }
+            citedChunks = new ArrayList<>(onePerDoc.values());
         }
 
-        // Deduplicate by page to avoid showing same page twice
+        // Deduplicate by doc + page
         return citedChunks.stream()
                 .collect(Collectors.toMap(
                         c -> c.getDocument().getId() + "_" + c.getPageNumber(),
                         c -> c,
-                        (a, b) -> a,   // keep first on duplicate
+                        (a, b) -> a,
                         LinkedHashMap::new
                 ))
                 .values().stream()
