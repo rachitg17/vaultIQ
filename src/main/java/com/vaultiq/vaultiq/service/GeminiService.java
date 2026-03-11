@@ -52,6 +52,7 @@ public class GeminiService {
                     .build();
 
             try (Response response = client.newCall(request).execute()) {
+                assert response.body() != null;
                 String responseBody = response.body().string();
                 log.info("Groq response received");
                 JsonNode root = objectMapper.readTree(responseBody);
@@ -102,12 +103,21 @@ public class GeminiService {
                         "\n================\n\n" +
                         "QUESTION: " + question + "\n\n" +
                         "RULES FOR ANSWERING:\n" +
-                        "1. PRESENTATION: Use Markdown. Use **bolding** for key values and bullet points for lists. Do NOT use the pipe symbol (|) in your response.\n" +
-                        "2. TABULAR DATA: If the context has pipe-separated data, convert it into a clean bulleted list or a standard Markdown table (without extra pipes). Map headers to values clearly.\n" +
-                        "3. CITATION: When using information from a specific document, mention its filename naturally in the sentence (e.g., 'In Resume.pdf, it states...').\n" +
-                        "4. ACCURACY: Match names, numbers, and dates exactly as written. Do not calculate unless asked.\n" +
-                        "5. MULTI-SOURCE: If information comes from multiple documents, synthesize them into a single coherent answer, mentioning each source.\n" +
-                        "6. CONCISENESS: Answer directly. No intro, no 'Based on the document provided', just the facts.\n\n" +
+                        // FIX: Remove markdown/bolding instruction — causes raw ** in frontend
+                        // FIX: Remove pipe ban from rule 1 since it's now rule 2
+                        "1. FORMAT: Write in clean plain text only. Do NOT use markdown, asterisks, " +
+                        "bold syntax (**text**), bullet symbols, or the pipe character (|) anywhere in your response.\n" +
+                        "2. TABULAR DATA: If the context contains pipe-separated rows (table data), " +
+                        "read the columns carefully and present the values as a clean numbered or " +
+                        "comma-separated list. Map each header to its value. Never output raw pipe characters.\n" +
+                        "3. ACCURACY: Match names, numbers, dates, and percentiles exactly as written " +
+                        "in the context. Do not round, estimate, or calculate unless explicitly asked.\n" +
+                        "4. CONCISENESS: Answer directly and completely. No intro phrases like " +
+                        "'Based on the document' or 'According to'. Just the facts.\n" +
+                        "5. MULTI-SOURCE: If information comes from multiple documents, mention each " +
+                        "source filename naturally in the sentence so citations can be matched.\n" +
+                        "6. NOT FOUND: Only say information is missing if you have genuinely searched " +
+                        "all provided context and found nothing relevant.\n\n" +
                         "ANSWER:";
 
         return generateContent(prompt);
@@ -155,11 +165,13 @@ public class GeminiService {
                     .build();
 
             try (Response response = client.newCall(request).execute()) {
+                assert response.body() != null;
                 String responseBody = response.body().string();
                 JsonNode responseRoot = mapper.readTree(responseBody);
 
                 if (responseRoot.has("error")) {
-                    log.error("Groq vision error: {}", responseRoot.path("error").path("message").asText());
+                    log.error("Groq vision error: {}",
+                            responseRoot.path("error").path("message").asText());
                     return "";
                 }
 

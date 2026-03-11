@@ -20,27 +20,31 @@ public class SearchService {
     private final GeminiService geminiService;
 
     public List<Document> search(SearchRequest request) {
-        log.info("Searching for: {}", request.getQuery());
+        log.info("Searching for: {} by user: {}", request.getQuery(), request.getUploadedBy());
 
-        // For short/numeric queries — just do direct text search, skip AI
+        String userId = request.getUploadedBy();
+
+        // GUARD: if no user context, return empty — never leak other users' docs
+        if (userId == null || userId.isBlank()) {
+            log.warn("Search attempted with no uploadedBy — returning empty");
+            return new ArrayList<>();
+        }
+
         boolean isSimpleQuery = request.getQuery().length() < 10 ||
                 request.getQuery().matches(".*\\d{4,}.*");
 
-        // Step 1: Keyword search in DB
+        // FIX 1: Always use user-scoped keyword search
         List<Document> keywordResults = documentRepository
-                .searchByKeyword(request.getQuery());
+                .searchByKeywordAndUser(request.getQuery(), userId);
 
         if (isSimpleQuery) {
-            return keywordResults; // return immediately for numbers/short queries
+            // FIX 2: Simple queries now also properly scoped
+            return keywordResults;
         }
 
-        // Step 2: AI scoring only for descriptive queries
-        List<Document> allDocs = request.getUploadedBy() != null
-                ? documentRepository.findByUploadedBy(request.getUploadedBy())
-                : documentRepository.findAll();
-
-        List<Document> aiScoredResults = scoreDocumentsWithAI(
-                request.getQuery(), allDocs);
+        // FIX 3: AI scoring only over current user's documents — never findAll()
+        List<Document> userDocs = documentRepository.findByUploadedBy(userId);
+        List<Document> aiScoredResults = scoreDocumentsWithAI(request.getQuery(), userDocs);
 
         List<Document> merged = mergeResults(keywordResults, aiScoredResults);
 
@@ -58,7 +62,6 @@ public class SearchService {
         List<Document> scored = new ArrayList<>();
 
         for (Document doc : documents) {
-            // Build a mini context from summary + entities + tags
             String docContext = String.format(
                     "Filename: %s\nType: %s\nSummary: %s\nEntities: %s\nTags: %s",
                     doc.getFileName(),
