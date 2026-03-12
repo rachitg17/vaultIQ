@@ -191,27 +191,48 @@ public class DocumentProcessingService {
 
     private List<DocumentChunk> chunkDocument(String text, Document document) {
         List<DocumentChunk> chunks = new ArrayList<>();
-        String[] words = text.split("\\s+");
-        int chunkIndex = 0;
+        String[] lines = text.split("\n");
 
-        for (int i = 0; i < words.length; i += CHUNK_SIZE) {
-            int end = Math.min(i + CHUNK_SIZE, words.length);
-            StringBuilder chunkText = new StringBuilder();
-            for (int j = i; j < end; j++) {
-                chunkText.append(words[j]).append(" ");
+        int currentPage = 1;
+        int chunkIndex = 0;
+        StringBuilder chunkText = new StringBuilder();
+        int wordCount = 0;
+
+        for (String line : lines) {
+            // Detect page markers like "--- Page 14 ---"
+            if (line.trim().matches("---\\s*Page\\s*(\\d+)\\s*---")) {
+                currentPage = Integer.parseInt(line.trim().replaceAll(".*Page\\s*(\\d+).*", "$1"));
+                continue; // skip the marker line itself
             }
 
-            int pageNumber = (i / 300) + 1;
-            int paragraphNumber = (i / 100) + 1;
+            chunkText.append(line).append(" ");
+            wordCount += line.split("\\s+").length;
 
+            if (wordCount >= CHUNK_SIZE) {
+                int paragraphNumber = chunkIndex + 1;
+                chunks.add(DocumentChunk.builder()
+                        .document(document)
+                        .chunkText(chunkText.toString().trim())
+                        .chunkIndex(chunkIndex++)
+                        .pageNumber(currentPage)       // ← actual page from marker
+                        .paragraphNumber(paragraphNumber)
+                        .build());
+                chunkText = new StringBuilder();
+                wordCount = 0;
+            }
+        }
+
+        // Save any remaining text as last chunk
+        if (!chunkText.isEmpty()) {
             chunks.add(DocumentChunk.builder()
                     .document(document)
                     .chunkText(chunkText.toString().trim())
-                    .chunkIndex(chunkIndex++)
-                    .pageNumber(pageNumber)
-                    .paragraphNumber(paragraphNumber)
+                    .chunkIndex(chunkIndex)
+                    .pageNumber(currentPage)
+                    .paragraphNumber(chunkIndex + 1)
                     .build());
         }
+
         return chunks;
     }
 
