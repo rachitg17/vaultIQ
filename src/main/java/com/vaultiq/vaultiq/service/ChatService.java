@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,6 +31,9 @@ public class ChatService {
             "which one", "vs", "versus", "both", "all", "across", "between",
             "contrast", "similar", "same", "common", "combined", "together"
     );
+
+    // Max citations shown per document — keeps UI clean
+    private static final int MAX_CITATIONS_PER_DOC = 2;
 
     @Transactional
     public ChatResponse chat(ChatRequest request) {
@@ -51,25 +56,44 @@ public class ChatService {
         List<DocumentChunk> relevantChunks;
 
         if (isSingleDoc) {
-            // Single doc chat — score only within that doc
             relevantChunks = findChunksForSingleDoc(request.getQuestion(), documents.getFirst());
         } else if (isComparison && documents.size() > 1) {
-            // Comparison query — force chunks from ALL docs, guaranteed representation
             relevantChunks = findChunksForComparison(request.getQuestion(), documents);
         } else {
-            // Normal multi-doc — scored relevance with gap detection
             relevantChunks = findRelevantChunks(request.getQuestion(), documents);
         }
 
         String context = buildContext(relevantChunks);
         String rawAnswer = geminiService.answerQuestion(request.getQuestion(), context);
-        List<ChatResponse.Citation> citations = buildSmartCitations(relevantChunks, rawAnswer);
+
+        // Extract page numbers the LLM actually mentioned in its answer
+        List<Integer> mentionedPages = extractMentionedPages(rawAnswer);
+        log.info("Pages mentioned in answer: {}", mentionedPages);
+
+        List<ChatResponse.Citation> citations = buildSmartCitations(
+                relevantChunks, rawAnswer, mentionedPages);
 
         return ChatResponse.builder()
                 .answer(rawAnswer)
                 .citations(citations)
                 .success(true)
                 .build();
+    }
+
+    // ── Extract page numbers from LLM answer e.g. "pages 44-45", "page 5" ──
+    private List<Integer> extractMentionedPages(String answer) {
+        List<Integer> pages = new ArrayList<>();
+        Pattern pattern = Pattern.compile(
+                "pages?\\s+(\\d+)(?:\\s*[–\\-]\\s*(\\d+))?",
+                Pattern.CASE_INSENSITIVE);
+        Matcher m = pattern.matcher(answer);
+        while (m.find()) {
+            pages.add(Integer.parseInt(m.group(1)));
+            if (m.group(2) != null) {
+                pages.add(Integer.parseInt(m.group(2)));
+            }
+        }
+        return pages;
     }
 
     private boolean isComparisonQuery(String question) {
@@ -110,8 +134,6 @@ public class ChatService {
         String[] questionWords = questionLower.split("\\s+");
 
         List<DocumentChunk> result = new ArrayList<>();
-
-        // Balance chunks per doc: 2 docs → 4 each, 4 docs → 2 each, max 8 total
         int chunksPerDoc = Math.max(1, 8 / documents.size());
 
         for (Document doc : documents) {
@@ -133,7 +155,7 @@ public class ChatService {
         return result;
     }
 
-    // Normal multi-doc — scored with gap detection
+    // Normal multi-doc — scored with gap detection (tightened to 3x)
     private List<DocumentChunk> findRelevantChunks(String question, List<Document> documents) {
         List<DocumentChunk> allChunks = new ArrayList<>();
         for (Document doc : documents) {
@@ -156,8 +178,8 @@ public class ChatService {
         int topScore = scored.get(0).getValue();
         int secondScore = scored.size() > 1 ? scored.get(1).getValue() : 0;
 
-        // Only focus on single doc if it's clearly dominant (2x the next best)
-        if (topScore > 0 && topScore >= secondScore * 2) {
+        // Tightened from 2x → 3x: only focus on single doc if clearly dominant
+        if (topScore > 0 && topScore >= secondScore * 3) {
             String topDocId = scored.getFirst().getKey().getDocument().getId();
             log.info("Clear winner doc (score {} vs {}), focusing on it", topScore, secondScore);
             return scored.stream()
@@ -213,12 +235,13 @@ public class ChatService {
     }
 
     private List<ChatResponse.Citation> buildSmartCitations(
-            List<DocumentChunk> chunks, String answer) {
+            List<DocumentChunk> chunks, String answer, List<Integer> mentionedPages) {
 
         if (chunks.isEmpty()) return new ArrayList<>();
 
         String answerLower = answer.toLowerCase();
 
+        // Step 1 — find which docs the LLM actually mentioned by filename
         Set<String> mentionedDocIds = chunks.stream()
                 .filter(chunk -> {
                     String fname = chunk.getDocument().getFileName().toLowerCase();
@@ -245,15 +268,42 @@ public class ChatService {
             citedChunks = new ArrayList<>(onePerDoc.values());
         }
 
-        // Deduplicate by doc + page
-        return citedChunks.stream()
-                .collect(Collectors.toMap(
-                        c -> c.getDocument().getId() + "_" + c.getPageNumber(),
-                        c -> c,
-                        (a, b) -> a,
-                        LinkedHashMap::new
-                ))
-                .values().stream()
+        // Step 2 — deduplicate by doc + page
+        List<DocumentChunk> deduped = new ArrayList<>(
+                citedChunks.stream()
+                        .collect(Collectors.toMap(
+                                c -> c.getDocument().getId() + "_" + c.getPageNumber(),
+                                c -> c,
+                                (a, b) -> a,
+                                LinkedHashMap::new
+                        ))
+                        .values()
+        );
+
+        // Step 3 — sort: chunks whose page was mentioned in the answer come FIRST
+        deduped.sort((a, b) -> {
+            boolean aMatch = mentionedPages.contains(a.getPageNumber());
+            boolean bMatch = mentionedPages.contains(b.getPageNumber());
+            if (aMatch && !bMatch) return -1;
+            if (!aMatch && bMatch) return 1;
+            return 0;
+        });
+
+        // Step 4 — hard cap: max MAX_CITATIONS_PER_DOC per document
+        Map<String, Integer> countPerDoc = new HashMap<>();
+        List<DocumentChunk> capped = new ArrayList<>();
+        for (DocumentChunk chunk : deduped) {
+            String docId = chunk.getDocument().getId();
+            int count = countPerDoc.getOrDefault(docId, 0);
+            if (count < MAX_CITATIONS_PER_DOC) {
+                capped.add(chunk);
+                countPerDoc.put(docId, count + 1);
+            }
+        }
+
+        log.info("Citations after all filters: {} chips", capped.size());
+
+        return capped.stream()
                 .map(chunk -> ChatResponse.Citation.builder()
                         .documentName(chunk.getDocument().getFileName())
                         .documentId(chunk.getDocument().getId())
